@@ -154,9 +154,19 @@ function startGame(room) {
 }
 
 // Hikâye fazından ilk geceye geçiş
+// İlk gece TAMAMEN güvenli ve ETKİLEŞİMSİZ: kimseye seçim sorulmaz (vampire bile),
+// kimse ölmez/infaz edilmez. Sadece atmosfer + şüphe duyumları anlatılıp sabaha geçilir.
 function beginFirstNight(room) {
-  room.phase = 'night';
-  pushLog(room, `🌙 ${room.mekan} üzerine ilk gece çöküyor...`);
+  pushLog(room, `🌙 ${room.mekan} üzerine ilk gece çöktü…`);
+  pushLog(room, `🌅 İlk sabah! Kimse ölmedi. ${firstNightTease(room, null)}`);
+  const alive = alivePlayers(room);
+  if (alive.length) {
+    const r = alive[Math.floor(Math.random() * alive.length)];
+    pushLog(room, `👀 ${firstNightRumor(r.name)}`);
+  }
+  room.lastNightDeaths = [];
+  room.nightReveal = [];
+  room.phase = 'day';
   touch(room);
 }
 
@@ -253,21 +263,6 @@ function resolveNight(room) {
 
   room.lastNightDeaths = [];
   room.nightReveal = [];
-
-  // İlk gece güvenli: kimse ölmez, muzip bir hikâye + şüphe çektiren duyum anlatılır
-  if (room.round === 1) {
-    const vname = victim ? (room.players.get(victim) || {}).name : null;
-    pushLog(room, `🌅 İlk sabah! Kimse ölmedi. ${firstNightTease(room, vname)}`);
-    const aliveArr = alivePlayers(room);
-    if (aliveArr.length) {
-      const r = aliveArr[Math.floor(Math.random() * aliveArr.length)];
-      pushLog(room, `👀 ${firstNightRumor(r.name)}`);
-    }
-    room.night = { vampireVotes: {}, doctorSave: null, seerInspect: null };
-    room.phase = 'day';
-    touch(room);
-    return;
-  }
 
   if (victim) {
     if (victim === room.night.doctorSave) {
