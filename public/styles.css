@@ -1,3 +1,12 @@
+/* Mekân çipleri ve satır düzeni */
+.row-between { display: flex; align-items: center; justify-content: space-between; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 10px 14px; border-radius: 999px; border: 1.5px solid var(--border);
+  background: rgba(0,0,0,0.25); font-size: 14px; font-weight: 700; color: var(--text); width: auto;
+}
+.chip.on { border-color: var(--blood2); background: rgba(192,32,58,0.18); color: #fff; }
+
 :root {
   --bg: #0b0710;
   --bg2: #150c1d;

@@ -1,5 +1,5 @@
 // Vampir Köylü — servis çalışanı: uygulama kabuğunu önbelleğe alır, API'yi asla.
-const CACHE = 'vampir-koylu-v1';
+const CACHE = 'vampir-koylu-v2';
 const SHELL = [
   './',
   './index.html',
@@ -26,17 +26,14 @@ self.addEventListener('fetch', (e) => {
   if (url.pathname.startsWith('/api/')) return;
   if (e.request.method !== 'GET') return;
 
-  // Uygulama kabuğu: önce önbellek, sonra ağ; ağ gelirse önbelleği güncelle
+  // Uygulama kabuğu: ÖNCE AĞ (her zaman güncel kod), çevrimdışıysa önbellek.
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      const net = fetch(e.request).then((res) => {
-        if (res && res.status === 200 && url.origin === location.origin) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy));
-        }
-        return res;
-      }).catch(() => cached);
-      return cached || net;
-    })
+    fetch(e.request).then((res) => {
+      if (res && res.status === 200 && url.origin === location.origin) {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(e.request, copy));
+      }
+      return res;
+    }).catch(() => caches.match(e.request))
   );
 });

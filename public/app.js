@@ -2,6 +2,20 @@
 
 // ------------------------------------------------------------------ oturum
 const LS = 'vampir_session_v1';
+const LS_MEKAN = 'vampir_mekanlar_v1';
+const MEKAN_PRESETS = ['Bekçiler Çalhanlar Dinlenme Tesisleri', 'Karaçulha Yayla', 'Kayadibi Köyü', 'Foça Mahallesi', 'Şövalye Adası', 'Aşıklar Tepesi'];
+const NAME_PRESETS = ['Aysel', 'Sezin', 'Mustafa', 'Ali', 'Burakhan', 'Merve'];
+function nameChips(nameInput) {
+  const wrap = el('<div class="chips" style="margin-top:8px"></div>');
+  NAME_PRESETS.forEach(n => {
+    const c = el(`<button type="button" class="chip">${esc(n)}</button>`);
+    c.onclick = () => { nameInput.value = n; nameInput.dispatchEvent(new Event('input')); };
+    wrap.appendChild(c);
+  });
+  return wrap;
+}
+function customMekans() { try { return JSON.parse(localStorage.getItem(LS_MEKAN) || '[]'); } catch { return []; } }
+function addCustomMekan(m) { const l = customMekans(); if (!l.includes(m) && !MEKAN_PRESETS.includes(m)) { l.push(m); localStorage.setItem(LS_MEKAN, JSON.stringify(l.slice(-12))); } }
 let session = null;        // { roomCode, playerId, token }
 let view = null;           // sunucudan gelen son görünüm
 let pollTimer = null;
@@ -37,11 +51,15 @@ function startPolling() {
   pollTimer = setInterval(tick, 1600);
 }
 function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+let lastViewJSON = null;
 async function tick() {
   if (!session) return;
   try {
     const prevPhase = view && view.phase;
-    view = await fetchState();
+    const data = await fetchState();
+    const js = JSON.stringify(data);
+    if (js === lastViewJSON) return; // hiçbir şey değişmedi → yeniden çizme (input'lar korunur)
+    view = data;
     if (view.phase !== prevPhase) window.scrollTo(0, 0);
     render();
   } catch (e) {
@@ -74,18 +92,29 @@ async function act(type, payload) {
 // ------------------------------------------------------------------ ana render
 function render() {
   const app = $('#app');
-  if (!session) { app.innerHTML = ''; app.appendChild(HomeScreen()); return; }
+  if (!session) { app.innerHTML = ''; app.appendChild(HomeScreen()); lastViewJSON = null; return; }
   if (!view) { app.innerHTML = '<div class="brand"><div class="logo">🧛</div><p class="muted">Bağlanıyor…</p></div>'; return; }
+
+  // Yeniden çizerken mekân kutusundaki yazıyı/imleci koru
+  const activeEl = document.activeElement;
+  const keep = (activeEl && activeEl.id === 'mekanInput') ? { v: activeEl.value, s: activeEl.selectionStart, e: activeEl.selectionEnd } : null;
 
   app.innerHTML = '';
   switch (view.phase) {
     case 'lobby': app.appendChild(LobbyScreen()); break;
+    case 'story': app.appendChild(StoryScreen()); break;
     case 'night': app.appendChild(NightScreen()); break;
     case 'day': app.appendChild(DayScreen()); break;
     case 'vote': app.appendChild(VoteScreen()); break;
     case 'ended': app.appendChild(EndedScreen()); break;
     default: app.appendChild(el('<div class="card">Bilinmeyen durum.</div>'));
   }
+
+  if (keep) {
+    const ni = document.getElementById('mekanInput');
+    if (ni) { ni.value = keep.v; ni.focus(); try { ni.setSelectionRange(keep.s, keep.e); } catch (e) {} }
+  }
+  try { lastViewJSON = JSON.stringify(view); } catch (e) {}
 }
 
 // ------------------------------------------------------------------ ekranlar
@@ -129,7 +158,9 @@ function HomeScreen() {
     const c = el('<div class="card stack"></div>');
     const nameInput = el('<input type="text" placeholder="Adın" maxlength="20" autocomplete="off" />');
     if (mode === 'create') {
-      c.appendChild(el('<div><label>Adın</label></div>')).appendChild(nameInput);
+      const nw = el('<div><label>Adın</label></div>');
+      nw.appendChild(nameInput); nw.appendChild(nameChips(nameInput));
+      c.appendChild(nw);
       const btn = el('<button class="btn-primary">Oda Kur ve Kodu Al</button>');
       btn.onclick = async () => {
         const name = nameInput.value.trim();
@@ -142,7 +173,7 @@ function HomeScreen() {
     } else {
       const codeInput = el('<input type="text" class="code-input" placeholder="KOD" maxlength="4" autocomplete="off" autocapitalize="characters" />');
       const nameWrap = el('<div></div>');
-      nameWrap.appendChild(el('<label>Adın</label>')); nameWrap.appendChild(nameInput);
+      nameWrap.appendChild(el('<label>Adın</label>')); nameWrap.appendChild(nameInput); nameWrap.appendChild(nameChips(nameInput));
       const codeWrap = el('<div></div>');
       codeWrap.appendChild(el('<label>Oda Kodu</label>')); codeWrap.appendChild(codeInput);
       c.appendChild(codeWrap); c.appendChild(nameWrap);
@@ -247,21 +278,74 @@ function LobbyScreen() {
   codeCard.appendChild(share);
   root.appendChild(codeCard);
 
+  root.appendChild(MekanCard());
+
   root.appendChild(el(`<div style="display:flex;align-items:center;justify-content:space-between">
     <h3 style="font-size:16px">Oyuncular (${view.playerCount})</h3>
-    <span class="muted" style="font-size:13px">min 4 · maks 20</span></div>`));
+    <span class="muted" style="font-size:13px">min 2 kişi</span></div>`));
   root.appendChild(PlayerList(false));
 
   if (view.me.isHost) {
-    const start = el('<button class="btn-primary">🌙 Oyunu Başlat</button>');
-    if (view.playerCount < 4) { start.disabled = true; start.textContent = `En az 4 oyuncu gerekli (${view.playerCount}/4)`; }
+    const start = el('<button class="btn-primary">📖 Oyunu Başlat</button>');
+    if (view.playerCount < 2) { start.disabled = true; start.textContent = `En az 2 oyuncu gerekli (${view.playerCount}/2)`; }
     start.onclick = () => act('start', {});
     root.appendChild(start);
-    root.appendChild(el('<p class="muted center" style="font-size:13px">Roller otomatik dağıtılır: oyuncu sayısına göre vampir, doktor ve gözcü eklenir.</p>'));
+    root.appendChild(el('<p class="muted center" style="font-size:13px">Roller otomatik dağıtılır: oyuncu sayısına göre vampir, doktor ve gözcü eklenir. (Az kişiyle oyun çok hızlı biter.)</p>'));
   } else {
     root.appendChild(el('<div class="waiting">Kurucunun başlatması bekleniyor<span class="dots"></span></div>'));
   }
   root.appendChild(LeaveBtn());
+  return root;
+}
+
+// ---- Mekân seçimi (kurucu seçer + kendi mekânını ekleyebilir)
+function MekanCard() {
+  const isHost = view.me.isHost;
+  const cur = view.mekan;
+  const card = el('<div class="card stack"></div>');
+  card.appendChild(el(`<div class="row-between"><h3 style="font-size:16px">📖 Hikâye mekânı</h3>${isHost ? '' : `<span class="muted" style="font-size:12.5px">kurucu seçer</span>`}</div>`));
+
+  if (!isHost) {
+    card.appendChild(el(`<div class="notice info">📍 <b>${esc(cur)}</b></div>`));
+    return card;
+  }
+
+  const chips = el('<div class="chips"></div>');
+  const list = MEKAN_PRESETS.concat(customMekans());
+  if (!list.includes(cur)) list.push(cur);
+  list.forEach(m => {
+    const c = el(`<button class="chip ${m === cur ? 'on' : ''}">${esc(m)}</button>`);
+    c.onclick = () => act('setMekan', { mekan: m });
+    chips.appendChild(c);
+  });
+  card.appendChild(chips);
+
+  const row = el('<div style="display:flex;gap:8px"></div>');
+  const inp = el('<input type="text" id="mekanInput" maxlength="40" placeholder="Kendi mekânını yaz…" autocomplete="off" />');
+  const addBtn = el('<button class="btn-ghost btn-sm" style="white-space:nowrap">+ Ekle</button>');
+  const submit = () => {
+    const m = inp.value.trim();
+    if (!m) return;
+    addCustomMekan(m);
+    inp.value = '';
+    act('setMekan', { mekan: m });
+  };
+  addBtn.onclick = submit;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  row.appendChild(inp); row.appendChild(addBtn);
+  card.appendChild(row);
+  return card;
+}
+
+// ---- Hikâye (mekâna göre anlatı)
+function StoryScreen() {
+  const root = el('<div class="grow stack"></div>');
+  root.appendChild(el(`<div class="phase-hdr"><div class="icon">📖</div><h2>Hikâye</h2><div class="sub">📍 ${esc(view.mekan)}</div></div>`));
+  root.appendChild(RoleBanner());
+  root.appendChild(el(`<div class="card"><p style="font-size:16px;line-height:1.7;margin:0">${esc(view.prompt.text)}</p></div>`));
+  const adv = HostAdvance();
+  if (adv) root.appendChild(adv);
+  else root.appendChild(el('<div class="waiting">Kurucunun ilk geceyi başlatması bekleniyor<span class="dots"></span></div>'));
   return root;
 }
 

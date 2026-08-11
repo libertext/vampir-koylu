@@ -85,8 +85,9 @@ function newRoom(hostName) {
     hostId: null,
     createdAt: now(),
     lastActivity: now(),
-    phase: 'lobby',        // lobby | night | day | vote | ended
+    phase: 'lobby',        // lobby | story | night | day | vote | ended
     round: 0,
+    mekan: 'Bekçiler Çalhanlar Dinlenme Tesisleri',   // hikâye mekânı (kurucu seçer)
     players: new Map(),    // id -> player
     order: [],             // katılım sırası (id[])
     night: { vampireVotes: {}, doctorSave: null, seerInspect: null },
@@ -128,10 +129,10 @@ function pushLog(room, text) { room.log.push({ round: room.round, text }); if (r
 
 function startGame(room) {
   const players = room.order.map(i => room.players.get(i));
-  if (players.length < 4) return { error: 'En az 4 oyuncu gerekli.' };
+  if (players.length < 2) return { error: 'En az 2 oyuncu gerekli.' };
   const dist = roleDistribution(players.length);
   players.forEach((p, i) => { p.role = dist[i]; p.alive = true; p.private = []; });
-  room.phase = 'night';
+  room.phase = 'story';
   room.round = 1;
   room.winner = null;
   room.night = { vampireVotes: {}, doctorSave: null, seerInspect: null };
@@ -140,9 +141,24 @@ function startGame(room) {
   room.lastLynched = null;
   room.log = [];
   const vamps = players.filter(p => p.role === 'vampir').length;
-  pushLog(room, `Oyun başladı — ${players.length} oyuncu, ${vamps} vampir. İlk gece çöküyor... 🌙`);
+  pushLog(room, `Oyun başladı — ${players.length} oyuncu, ${vamps} vampir. Mekân: ${room.mekan}.`);
   touch(room);
   return { ok: true };
+}
+
+// Hikâye fazından ilk geceye geçiş
+function beginFirstNight(room) {
+  room.phase = 'night';
+  pushLog(room, `🌙 ${room.mekan} üzerine ilk gece çöküyor...`);
+  touch(room);
+}
+
+function storyText(room) {
+  const vamps = room.order.map(i => room.players.get(i)).filter(p => p.role === 'vampir').length;
+  return `Uzaklarda, ${room.mekan}... Halkın huzurlu göründüğü bu yerde karanlık bir sır fısıldanır: ` +
+    `içinizde ${vamps} vampir dolaşıyor. Geceleri avlanıyor, gündüzleri sizden biri gibi aranıza karışıyorlar. ` +
+    `Her gece biri kaybolacak, her gün köy bir şüpheliyi kürsüye çıkaracak. Kim insan, kim canavar? ` +
+    `Güveni kazanan yaşar, açık veren kaybolur. Şafağa kadar hayatta kalabilecek misiniz?`;
 }
 
 function nightReady(room) {
@@ -314,10 +330,20 @@ function handleAction(room, player, type, payload) {
     }
     case 'advance': {
       if (!isHost) return { error: 'Sadece oda kurucusu ilerletebilir.' };
-      if (room.phase === 'night') resolveNight(room);
+      if (room.phase === 'story') beginFirstNight(room);
+      else if (room.phase === 'night') resolveNight(room);
       else if (room.phase === 'day') toVote(room);
       else if (room.phase === 'vote') resolveVote(room);
       else return { error: 'Şu an ilerletilecek bir şey yok.' };
+      touch(room);
+      return { ok: true };
+    }
+    case 'setMekan': {
+      if (!isHost) return { error: 'Sadece oda kurucusu mekân seçebilir.' };
+      if (room.phase !== 'lobby') return { error: 'Mekân sadece lobide seçilir.' };
+      const m = String(payload.mekan || '').trim().slice(0, 40);
+      if (!m) return { error: 'Geçersiz mekân.' };
+      room.mekan = m;
       touch(room);
       return { ok: true };
     }
@@ -383,6 +409,7 @@ function viewFor(room, player) {
   const alive = alivePlayers(room);
   const view = {
     code: room.code, phase: room.phase, round: room.round, winner: room.winner,
+    mekan: room.mekan,
     me, players,
     log: room.log.slice(-14).map(l => l.text),
     aliveCount: alive.length,
@@ -400,7 +427,9 @@ function viewFor(room, player) {
     .map(p => ({ id: p.id, name: p.name }));
 
   if (room.phase === 'lobby') {
-    view.prompt = { type: 'lobby', canStart: me.isHost && room.order.length >= 4 };
+    view.prompt = { type: 'lobby', canStart: me.isHost && room.order.length >= 2, canSetMekan: me.isHost };
+  } else if (room.phase === 'story') {
+    view.prompt = { type: 'story', text: storyText(room) };
   } else if (room.phase === 'night') {
     const submitted = nightSubmittedCount(room);
     if (!player.alive) view.prompt = { type: 'sleep', dead: true, waiting: submitted };
@@ -441,8 +470,9 @@ function viewFor(room, player) {
 
   // Host için ilerletme kontrolü
   view.hostControls = me.isHost ? {
-    canAdvance: room.phase === 'night' || room.phase === 'day' || room.phase === 'vote',
-    advanceLabel: room.phase === 'night' ? 'Geceyi bitir →'
+    canAdvance: room.phase === 'story' || room.phase === 'night' || room.phase === 'day' || room.phase === 'vote',
+    advanceLabel: room.phase === 'story' ? 'İlk geceyi başlat 🌙'
+      : room.phase === 'night' ? 'Geceyi bitir →'
       : room.phase === 'day' ? 'Oylamaya geç →'
       : room.phase === 'vote' ? 'Oylamayı bitir →' : null,
   } : null;
@@ -537,7 +567,7 @@ const server = http.createServer(async (req, res) => {
       const room = rooms.get(code);
       if (!room) return send(res, 404, { error: 'Oda bulunamadı.' });
       if (room.phase !== 'lobby') return send(res, 409, { error: 'Oyun başladı, katılamazsın.' });
-      if (room.order.length >= 20) return send(res, 409, { error: 'Oda dolu (maks 20).' });
+      if (room.order.length >= 30) return send(res, 409, { error: 'Oda çok kalabalık (maks 30).' });
       const dupe = room.order.map(i => room.players.get(i)).some(pl => pl.name.toLowerCase() === name.toLowerCase());
       if (dupe) return send(res, 409, { error: 'Bu isim zaten alınmış.' });
       const player = addPlayer(room, name);
