@@ -1,0 +1,11 @@
+# Render Blueprint — "New +" → "Blueprint" ile bu depoyu seçince otomatik kurar.
+services:
+  - type: web
+    name: vampir-koylu
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"

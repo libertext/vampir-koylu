@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="32%" r="80%">
+      <stop offset="0%" stop-color="#2a1440"/>
+      <stop offset="55%" stop-color="#150c1d"/>
+      <stop offset="100%" stop-color="#0b0710"/>
+    </radialGradient>
+    <linearGradient id="blood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e0374f"/>
+      <stop offset="100%" stop-color="#a0122a"/>
+    </linearGradient>
+    <linearGradient id="moon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f4f1ff"/>
+      <stop offset="100%" stop-color="#c3ccff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- ay -->
+  <circle cx="352" cy="150" r="66" fill="url(#moon)" opacity="0.9"/>
+  <circle cx="330" cy="140" r="66" fill="url(#bg)"/>
+  <!-- vampir pelerin / gövde -->
+  <path d="M256 196c-64 0-116 40-116 118 0 44 20 74 60 90-16-30-8-70 20-86-6 26 4 46 26 58 22-12 32-32 26-58 28 16 36 56 20 86 40-16 60-46 60-90 0-78-52-118-116-118z" fill="#241531"/>
+  <!-- yüz -->
+  <ellipse cx="256" cy="258" rx="70" ry="76" fill="#efe6f5"/>
+  <!-- gözler -->
+  <circle cx="230" cy="248" r="11" fill="#c0203a"/>
+  <circle cx="282" cy="248" r="11" fill="#c0203a"/>
+  <!-- kaşlar (sinsi) -->
+  <path d="M212 232 l34 8" stroke="#241531" stroke-width="8" stroke-linecap="round"/>
+  <path d="M300 232 l-34 8" stroke="#241531" stroke-width="8" stroke-linecap="round"/>
+  <!-- ağız + sivri dişler -->
+  <path d="M224 288 q32 22 64 0" fill="none" stroke="#7a1226" stroke-width="7" stroke-linecap="round"/>
+  <path d="M236 292 l8 26 8-26z" fill="#fff"/>
+  <path d="M268 292 l8 26 8-26z" fill="#fff"/>
+  <!-- kan damlası -->
+  <path d="M256 336 c-9 14-16 22-16 33a16 16 0 0 0 32 0c0-11-7-19-16-33z" fill="url(#blood)"/>
+</svg>
