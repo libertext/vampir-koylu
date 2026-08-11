@@ -210,6 +210,30 @@ function TopBar() {
     </div>`);
 }
 
+// Kadro göstergesi (kaç vampir/doktor/gözcü/köylü)
+function compParts() {
+  const c = view.composition || {};
+  const parts = [];
+  if (c.vampir) parts.push(`🧛 ${c.vampir} Vampir`);
+  if (c.doktor) parts.push(`💉 ${c.doktor} Doktor`);
+  if (c.gozcu) parts.push(`🔮 ${c.gozcu} Gözcü`);
+  if (c.koylu) parts.push(`🧑‍🌾 ${c.koylu} Köylü`);
+  return parts;
+}
+function CompositionCard() {
+  const parts = compParts();
+  if (!parts.length) return el('<div></div>');
+  return el(`<div class="card" style="padding:14px">
+    <div style="font-size:13px;color:var(--muted);font-weight:800;margin-bottom:8px">👥 Bu oyunun kadrosu (${view.playerCount} kişi)</div>
+    <div class="chips">${parts.map(p => `<span class="chip on">${esc(p)}</span>`).join('')}</div>
+  </div>`);
+}
+function CompositionPills() {
+  const parts = compParts();
+  if (!parts.length) return el('<div></div>');
+  return el(`<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:8px">${parts.map(p => `<span class="pill" style="font-size:12px">${esc(p)}</span>`).join('')}</div>`);
+}
+
 function PlayerList(showRoles) {
   const wrap = el('<div class="players"></div>');
   view.players.forEach(p => {
@@ -289,6 +313,7 @@ function LobbyScreen() {
   root.appendChild(codeCard);
 
   root.appendChild(MekanCard());
+  root.appendChild(CompositionCard());
 
   root.appendChild(el(`<div style="display:flex;align-items:center;justify-content:space-between">
     <h3 style="font-size:16px">Oyuncular (${view.playerCount})</h3>
@@ -352,6 +377,7 @@ function StoryScreen() {
   const root = el('<div class="grow stack"></div>');
   root.appendChild(el(`<div class="phase-hdr"><div class="icon">📖</div><h2>Hikâye</h2><div class="sub">📍 ${esc(view.mekan)}</div></div>`));
   root.appendChild(RoleBanner());
+  root.appendChild(CompositionCard());
   root.appendChild(el(`<div class="card"><p style="font-size:16px;line-height:1.7;margin:0">${esc(view.prompt.text)}</p></div>`));
   const adv = HostAdvance();
   if (adv) root.appendChild(adv);
@@ -379,6 +405,7 @@ function RoleBanner() {
 function NightScreen() {
   const root = el('<div class="grow stack"></div>');
   root.appendChild(TopBar());
+  root.appendChild(CompositionPills());
   root.appendChild(el(`
     <div class="phase-hdr">
       <div class="icon">🌙</div>
@@ -456,6 +483,7 @@ function DeathCard(title, d) {
 function RevealScreen() {
   const root = el('<div class="grow stack"></div>');
   root.appendChild(TopBar());
+  root.appendChild(CompositionPills());
   root.appendChild(el(`<div class="phase-hdr"><div class="icon">⚖️</div><h2>İnfaz Sonucu</h2><div class="sub">${view.round}. gün oylaması</div></div>`));
   const r = (view.prompt && view.prompt.reveal) || { kind: 'nolynch' };
   if (r.kind === 'lynch') {
@@ -474,6 +502,7 @@ function RevealScreen() {
 function DayScreen() {
   const root = el('<div class="grow stack"></div>');
   root.appendChild(TopBar());
+  root.appendChild(CompositionPills());
   root.appendChild(el(`
     <div class="phase-hdr">
       <div class="icon">☀️</div>
@@ -505,6 +534,7 @@ function DayScreen() {
 function VoteScreen() {
   const root = el('<div class="grow stack"></div>');
   root.appendChild(TopBar());
+  root.appendChild(CompositionPills());
   root.appendChild(el(`
     <div class="phase-hdr">
       <div class="icon">⚖️</div>
@@ -532,9 +562,15 @@ function VoteScreen() {
     root.appendChild(wrap);
   }
 
-  root.appendChild(el(`<div class="waiting">Oylar: ${p.votesCast}/${p.aliveCount}<span class="dots"></span></div>`));
+  const allVoted = p.votesCast >= p.aliveCount;
+  if (allVoted)
+    root.appendChild(el(`<div class="notice ok">✅ Herkes oyunu kullandı (${p.votesCast}/${p.aliveCount}). ${view.me.isHost ? 'Sonucu onaylayabilirsin.' : 'Kurucunun onayı bekleniyor.'}</div>`));
+  else
+    root.appendChild(el(`<div class="waiting">Oylar bekleniyor: ${p.votesCast}/${p.aliveCount}<span class="dots"></span></div>`));
+
   const adv = HostAdvance();
-  if (adv) root.appendChild(adv);
+  if (adv) { adv.textContent = allVoted ? '✅ Oylamayı bitir ve sonucu göster' : `Oylamayı bitir (${p.votesCast}/${p.aliveCount}) →`; root.appendChild(adv); }
+  else if (!allVoted) root.appendChild(el('<div class="waiting">Herkesin oy vermesi bekleniyor<span class="dots"></span></div>'));
   root.appendChild(LogBox());
   return root;
 }

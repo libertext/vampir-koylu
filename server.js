@@ -59,21 +59,25 @@ const ROLE_INFO = {
     desc: 'Her gece bir kişiyi incelersin ve vampir olup olmadığını öğrenirsin. Bilgini akıllıca kullan.' },
 };
 
+// Oyuncu sayısına göre kadro sayıları (dağıtımla birebir aynı mantık)
+function roleCounts(n) {
+  let vampir;
+  if (n <= 6) vampir = 1;
+  else if (n <= 9) vampir = 2;
+  else if (n <= 12) vampir = 3;
+  else vampir = Math.floor(n / 4);
+  const doktor = n >= 4 ? 1 : 0;
+  const gozcu = n >= 5 ? 1 : 0;
+  const koylu = Math.max(0, n - vampir - doktor - gozcu);
+  return { vampir, doktor, gozcu, koylu };
+}
+
 function roleDistribution(n) {
-  // Oyuncu sayısına göre rol dağılımı
-  let vamp;
-  if (n <= 5) vamp = 1;
-  else if (n <= 8) vamp = 2;
-  else if (n <= 11) vamp = 3;
-  else vamp = Math.floor(n / 4);
-
-  const special = [];
-  if (n >= 4) special.push('doktor');
-  if (n >= 5) special.push('gozcu');
-
+  const c = roleCounts(n);
   const roles = [];
-  for (let i = 0; i < vamp; i++) roles.push('vampir');
-  for (const s of special) roles.push(s);
+  for (let i = 0; i < c.vampir; i++) roles.push('vampir');
+  if (c.doktor) roles.push('doktor');
+  if (c.gozcu) roles.push('gozcu');
   while (roles.length < n) roles.push('koylu');
   return shuffle(roles.slice(0, n));
 }
@@ -490,9 +494,8 @@ function handleAction(room, player, type, payload) {
       return { error: 'Bilinmeyen eylem.' };
   }
 
-  // Otomatik ilerleme (anlatıcıya gerek kalmadan)
+  // Gece eylemleri tamamlanınca otomatik ilerler; OYLAMA ise kurucunun onayıyla biter.
   if (room.phase === 'night' && nightReady(room)) resolveNight(room);
-  else if (room.phase === 'vote' && voteReady(room)) resolveVote(room);
   touch(room);
   return { ok: true };
 }
@@ -536,6 +539,7 @@ function viewFor(room, player) {
   const view = {
     code: room.code, phase: room.phase, round: room.round, winner: room.winner,
     mekan: room.mekan,
+    composition: roleCounts(room.order.length),
     me, players,
     log: room.log.slice(-14).map(l => l.text),
     aliveCount: alive.length,
