@@ -444,10 +444,10 @@ function DeathCard(title, d) {
     : '<span class="rteam vampirler">VAMPİRDİ 🧛</span>';
   return el(`<div class="rolecard" style="padding:22px">
     <div style="font-size:13px;color:var(--muted);font-weight:800;letter-spacing:.04em">${esc(title)}</div>
-    <div class="emoji" style="font-size:60px;margin-top:6px">${d.emoji || '☠️'}</div>
+    <div class="emoji" style="font-size:60px;margin-top:6px">☠️</div>
     <div class="rname">${esc(d.name)}</div>
     <div style="margin-top:8px">${badge}</div>
-    <div class="muted" style="margin-top:8px;font-size:13px">Rolü: ${esc(d.role || '')}</div>
+    <div class="muted" style="margin-top:8px;font-size:13px">Kesin rolü oyun bitince açığa çıkacak.</div>
     ${d.special ? `<div class="notice death" style="margin-top:14px">${esc(d.special)}</div>` : ''}
   </div>`);
 }

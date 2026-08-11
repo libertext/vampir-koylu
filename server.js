@@ -281,8 +281,8 @@ function resolveNight(room) {
     pushLog(room, `🌅 Sabah oldu. Gece ${room.lastNightDeaths.join(', ')} öldürülmüş bulundu.${suffix}`);
     room.nightReveal = room.lastNightDeaths.map(n => {
       const pl = room.order.map(i => room.players.get(i)).find(x => x && x.name === n);
-      const info = pl ? ROLE_INFO[pl.role] : null;
-      return { name: n, role: info ? info.label : '', emoji: info ? info.emoji : '', innocent: pl ? pl.role !== 'vampir' : true, special: specialDeathLine(n, pl && pl.role) || null };
+      // Sadece takım (masum/vampir) açıklanır; kesin rol oyun sonuna saklanır.
+      return { name: n, innocent: pl ? pl.role !== 'vampir' : true, special: specialDeathLine(n, pl && pl.role) || null };
     });
   } else if (!victim) {
     pushLog(room, `🌅 Sabah oldu. Sakin bir geceydi, kimse ölmedi.`);
@@ -323,10 +323,11 @@ function resolveVote(room) {
     if (p && p.alive) {
       p.alive = false;
       room.lastLynched = p.name;
-      const info = ROLE_INFO[p.role];
       const special = specialDeathLine(p.name, p.role);
-      pushLog(room, `⚖️ Köy oyladı: ${p.name} infaz edildi. Rolü: ${info.emoji} ${info.label}.${special ? ' ' + special : ''}`);
-      room.reveal = { kind: 'lynch', name: p.name, role: info.label, emoji: info.emoji, innocent: p.role !== 'vampir', special: special || null };
+      const inno = p.role !== 'vampir';
+      // Kesin rol açıklanmaz; sadece masum/vampir. Kesin rol oyun sonunda çıkar.
+      pushLog(room, `⚖️ Köy oyladı: ${p.name} infaz edildi. ${inno ? 'Masumdu 😇' : 'Vampirdi 🧛'}.${special ? ' ' + special : ''}`);
+      room.reveal = { kind: 'lynch', name: p.name, innocent: inno, special: special || null };
     }
   } else {
     pushLog(room, `⚖️ Oylamada uzlaşma olmadı, kimse asılmadı.`);
@@ -432,7 +433,12 @@ function handleAction(room, player, type, payload) {
     case 'advance': {
       if (!isHost) return { error: 'Sadece oda kurucusu ilerletebilir.' };
       if (room.phase === 'story') beginFirstNight(room);
-      else if (room.phase === 'night') resolveNight(room);
+      else if (room.phase === 'night') {
+        // Doktor koruma kararını vermeden gece bitirilemez (vampirin öldürmesi önce gerçekleşemesin)
+        const doc = findAliveByRole(room, 'doktor');
+        if (doc && room.night.doctorSave === null) return { error: 'Doktor koruma kararını vermeden gece bitirilemez.' };
+        resolveNight(room);
+      }
       else if (room.phase === 'day') toVote(room);
       else if (room.phase === 'vote') resolveVote(room);
       else if (room.phase === 'reveal') revealToNight(room);
@@ -506,7 +512,9 @@ function viewFor(room, player) {
 
   const players = room.order.map(pid => {
     const p = room.players.get(pid);
-    const revealRole = ended || !p.alive || pid === player.id ||
+    // Ölümde kesin rol AÇIKLANMAZ (sadece takım: masum/vampir gösterilir).
+    // Kesin roller yalnızca oyun bitince açığa çıkar — böylece doktor da gizli kalır.
+    const revealRole = ended || pid === player.id ||
       (viewerIsVamp && p.role === 'vampir');
     return {
       id: p.id, name: p.name, alive: p.alive, isHost: p.id === room.hostId, left: !!p.left,
