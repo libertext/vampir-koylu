@@ -87,7 +87,7 @@ function newRoom(hostName) {
     lastActivity: now(),
     phase: 'lobby',        // lobby | story | night | day | vote | ended
     round: 0,
-    mekan: 'Bekçiler Çalhanlar Dinlenme Tesisleri',   // hikâye mekânı (kurucu seçer)
+    mekan: '584. sokak',   // hikâye mekânı (kurucu seçer)
     players: new Map(),    // id -> player
     order: [],             // katılım sırası (id[])
     night: { vampireVotes: {}, doctorSave: null, seerInspect: null },
@@ -107,7 +107,7 @@ function addPlayer(room, name) {
   const isHost = room.players.size === 0;
   const player = {
     id: pid, token: tok, name: name.slice(0, 20),
-    role: null, alive: true, isHost,
+    role: null, alive: true, isHost, left: false,
     private: [],  // gözcü sonuçları vb.
   };
   room.players.set(pid, player);
@@ -118,6 +118,13 @@ function addPlayer(room, name) {
 }
 
 function touch(room) { room.lastActivity = now(); }
+// Host ayrılırsa kalan (kaçmamış) ilk oyuncuya devret
+function migrateHost(room) {
+  const cand = room.order.map(i => room.players.get(i)).find(p => p && !p.left);
+  for (const p of room.players.values()) p.isHost = false;
+  if (cand) { room.hostId = cand.id; cand.isHost = true; pushLog(room, `👑 ${cand.name} artık oda kurucusu.`); }
+  else room.hostId = null;
+}
 function alivePlayers(room) { return room.order.map(i => room.players.get(i)).filter(p => p && p.alive); }
 function vampiresAlive(room) { return alivePlayers(room).filter(p => p.role === 'vampir'); }
 function findAliveByRole(room, role) { return alivePlayers(room).find(p => p.role === role) || null; }
@@ -155,10 +162,39 @@ function beginFirstNight(room) {
 
 function storyText(room) {
   const vamps = room.order.map(i => room.players.get(i)).filter(p => p.role === 'vampir').length;
+  if (room.mekan === '584. sokak') {
+    return `11 Ağustos 2026, akşam üstü. 584. sokak, Burakhan’ın evi... Bu gece Ali’nin doğum günü! ` +
+      `Balonlar asılmış, pasta hazır, müzik çalıyor, herkes gülüyor. Ama davetlilerin arasında ${vamps} vampir var; ` +
+      `göründükleri gibi masum değiller. Işıklar her söndüğünde biri kaybolacak, ` +
+      `her sabah masanın etrafında bir sandalye boş kalacak. Kim gerçek dost, kim canavar? ` +
+      `Ali’nin doğum günü bir kâbusa dönmeden vampirleri bulabilecek misiniz?`;
+  }
+  if (room.mekan === 'Karaçulha Yayla') {
+    const vampDesc = vamps === 1 ? 'bir vampir' : `${vamps} vampir`;
+    return `9 Ağustos 2026, akşam vakti. Mustafa’ların yayla evi... Mangal yeni söndü, kömürler hâlâ kızıl. ` +
+      `Herkes bir masanın etrafına toplanmış, karınlar tok, sohbet koyu. Ama aranızda ${vampDesc} var; ` +
+      `mangalın közleri gibi sinsice bekliyor. Karanlık çöküp ateş büsbütün söndüğünde ortaya çıkacak — ` +
+      `üstelik bu gece dolunay var, iştahları kabarık. Her gece biri yaylada kaybolacak, ` +
+      `her sabah masada bir kişi eksilecek. Sabaha kadar hayatta kalıp vampirleri bulabilecek misiniz?`;
+  }
   return `Uzaklarda, ${room.mekan}... Halkın huzurlu göründüğü bu yerde karanlık bir sır fısıldanır: ` +
     `içinizde ${vamps} vampir dolaşıyor. Geceleri avlanıyor, gündüzleri sizden biri gibi aranıza karışıyorlar. ` +
     `Her gece biri kaybolacak, her gün köy bir şüpheliyi kürsüye çıkaracak. Kim insan, kim canavar? ` +
     `Güveni kazanan yaşar, açık veren kaybolur. Şafağa kadar hayatta kalabilecek misiniz?`;
+}
+
+// İsme (ve bazılarında role) özel ölüm/infaz ibaresi (kişiselleştirme)
+function specialDeathLine(name, role) {
+  const innocent = role && role !== 'vampir'; // masum = vampir değil
+  switch (String(name).trim().toLowerCase()) {
+    case 'mustafa': return innocent ? '⚰️ Fethiye’nin ünlü avukatı hayatını kaybetti.' : null;
+    case 'burakhan': return innocent ? '⚖️ İstanbul’un ünlü avukatı hayatını kaybetti.' : null;
+    case 'sezin': return innocent ? '🐈 Kofti kimsesiz kaldı! (Sezin gidince kedisi Kofti’yi kim doyuracak şimdi?)' : null;
+    case 'ali': return innocent ? '💔 Aysel’in kocişi hayatını kaybetti; Aysel yaslara boğuldu.' : null;
+    case 'aysel': return innocent ? '⚖️ Ünlü boşanma avukatı hayatını kaybetti…' : null;
+    case 'merve': return innocent ? '💼 Bir bankacı hayatını kaybetti; hesaplar sahipsiz kaldı.' : null;
+    default: return null;
+  }
 }
 
 function nightReady(room) {
@@ -170,6 +206,22 @@ function nightReady(room) {
   const seer = findAliveByRole(room, 'gozcu');
   const seerReady = !seer || room.night.seerInspect !== null;
   return vamps.length > 0 && allVamps && docReady && seerReady;
+}
+
+// İlk gece için muzip anlatımlar (kurban seçilse de kimse ölmez) — isme ek getirmez
+function firstNightTease(room, victimName) {
+  const t = victimName;
+  const variants = t ? [
+    `Vampirler bu gece ${t} için geldi, kapının önünde tur attı ama içeri girmeye cesaret edemedi.`,
+    `Bir gölge ${t} adlı misafiri karanlıkta süzdü, sonra pastanın başına döndü — bu gece şanslıydı.`,
+    `${t} gece yarısı bir tıkırtı duydu ama sabah her şey yerli yerindeydi.`,
+    `Vampirler ${t} yerine doğum günü pastasından bir dilim alıp vazgeçti.`,
+    `Işıklar bir an söndü, ${t} yanı başında soğuk bir nefes hissetti… ama parti devam etti.`,
+  ] : [
+    `Vampirler henüz iştahsızdı, kimsenin kapısını çalmadı.`,
+    `İlk gece partinin gürültüsünden vampirler avlanamadı; herkes sağ salim uyandı.`,
+  ];
+  return variants[Math.floor(Math.random() * variants.length)];
 }
 
 function resolveNight(room) {
@@ -185,6 +237,17 @@ function resolveNight(room) {
   if (top.length) victim = top[Math.floor(Math.random() * top.length)];
 
   room.lastNightDeaths = [];
+
+  // İlk gece güvenli: kimse ölmez, muzip bir hikâye anlatılır
+  if (room.round === 1) {
+    const vname = victim ? (room.players.get(victim) || {}).name : null;
+    pushLog(room, `🌅 İlk sabah! ${firstNightTease(room, vname)} Kimse ölmedi.`);
+    room.night = { vampireVotes: {}, doctorSave: null, seerInspect: null };
+    room.phase = 'day';
+    touch(room);
+    return;
+  }
+
   if (victim) {
     if (victim === room.night.doctorSave) {
       pushLog(room, `Gece birine saldırıldı ama Doktor tam zamanında yetişti — kimse ölmedi.`);
@@ -194,7 +257,12 @@ function resolveNight(room) {
     }
   }
   if (room.lastNightDeaths.length) {
-    pushLog(room, `🌅 Sabah oldu. Gece ${room.lastNightDeaths.join(', ')} öldürülmüş bulundu.`);
+    const extras = room.lastNightDeaths.map(n => {
+      const pl = room.order.map(i => room.players.get(i)).find(x => x && x.name === n);
+      return specialDeathLine(n, pl && pl.role);
+    }).filter(Boolean);
+    const suffix = extras.length ? ' ' + extras.join(' ') : '';
+    pushLog(room, `🌅 Sabah oldu. Gece ${room.lastNightDeaths.join(', ')} öldürülmüş bulundu.${suffix}`);
   } else if (!victim) {
     pushLog(room, `🌅 Sabah oldu. Sakin bir geceydi, kimse ölmedi.`);
   } else {
@@ -234,7 +302,8 @@ function resolveVote(room) {
       p.alive = false;
       room.lastLynched = p.name;
       const info = ROLE_INFO[p.role];
-      pushLog(room, `⚖️ Köy oyladı: ${p.name} asıldı. Rolü: ${info.emoji} ${info.label}.`);
+      const special = specialDeathLine(p.name, p.role);
+      pushLog(room, `⚖️ Köy oyladı: ${p.name} infaz edildi. Rolü: ${info.emoji} ${info.label}.${special ? ' ' + special : ''}`);
     }
   } else {
     pushLog(room, `⚖️ Oylamada uzlaşma olmadı, kimse asılmadı.`);
@@ -362,6 +431,22 @@ function handleAction(room, player, type, payload) {
       }
       return { ok: true };
     }
+    case 'leave': {
+      if (room.phase === 'lobby' || room.phase === 'ended') {
+        // Lobide/oyun bittiğinde tamamen çıkar
+        room.players.delete(player.id);
+        room.order = room.order.filter(x => x !== player.id);
+      } else {
+        // Oyun sürerken: köyden kaçış (oyun devam eder)
+        player.left = true;
+        player.alive = false;
+        pushLog(room, `🏃 ${player.name} köyden kaçtı ve bir daha görülmedi.`);
+      }
+      if (player.id === room.hostId) migrateHost(room);
+      touch(room);
+      if (room.phase !== 'lobby' && room.phase !== 'ended' && checkWin(room)) return { ok: true };
+      break; // otomatik ilerleme kontrolüne düşsün (kaçan biri oylamayı kilitlemesin)
+    }
     default:
       return { error: 'Bilinmeyen eylem.' };
   }
@@ -391,7 +476,7 @@ function viewFor(room, player) {
     const revealRole = ended || !p.alive || pid === player.id ||
       (viewerIsVamp && p.role === 'vampir');
     return {
-      id: p.id, name: p.name, alive: p.alive, isHost: p.id === room.hostId,
+      id: p.id, name: p.name, alive: p.alive, isHost: p.id === room.hostId, left: !!p.left,
       role: revealRole && p.role ? ROLE_INFO[p.role].label : null,
       emoji: revealRole && p.role ? ROLE_INFO[p.role].emoji : null,
     };

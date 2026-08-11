@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0b0710" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Vampir Köylü — Tek Cihaz</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%9B%3C/text%3E%3C/svg%3E" />
+<style>
+  :root{
+    --bg:#0b0710;--bg2:#150c1d;--panel:rgba(30,18,42,.72);--panel-solid:#1c1226;
+    --border:rgba(150,90,200,.22);--text:#efe6f5;--muted:#a494b5;--blood:#c0203a;--blood2:#e0374f;
+    --gold:#e8b64c;--moon:#c9d4ff;--green:#3ecf8e;--radius:18px;--shadow:0 10px 40px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#2a1440 0,transparent 60%),
+               radial-gradient(800px 500px at 100% 100%,#1a0e28 0,transparent 60%),var(--bg);
+    color:var(--text);min-height:100vh;min-height:100dvh;overscroll-behavior:none;-webkit-user-select:none;user-select:none;
+  }
+  #app{max-width:520px;margin:0 auto;padding:max(env(safe-area-inset-top),18px) 18px calc(env(safe-area-inset-bottom) + 24px);min-height:100dvh;display:flex;flex-direction:column}
+  h1,h2,h3{margin:0;font-weight:800;letter-spacing:-.02em}
+  .brand{text-align:center;margin:12px 0 4px}
+  .brand .logo{font-size:54px;line-height:1;filter:drop-shadow(0 4px 16px rgba(192,32,58,.5))}
+  .brand h1{font-size:30px;margin-top:6px;background:linear-gradient(180deg,#fff,#d9b3ff 60%,#b06);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .brand p{color:var(--muted);margin:6px 0 0;font-size:14px}
+  .muted{color:var(--muted)} .center{text-align:center}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .stack>*+*{margin-top:12px} .grow{flex:1}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:600}
+  input[type=text]{width:100%;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:17px;padding:15px 16px;outline:none;transition:border-color .15s}
+  input[type=text]:focus{border-color:var(--blood2)}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:14px;font-size:17px;font-weight:700;padding:16px 18px;width:100%;color:#fff;transition:transform .08s,filter .15s,opacity .15s;touch-action:manipulation}
+  button:active{transform:scale(.97)} button:disabled{opacity:.4;cursor:not-allowed}
+  .btn-primary{background:linear-gradient(180deg,var(--blood2),var(--blood));box-shadow:0 6px 20px rgba(192,32,58,.4)}
+  .btn-gold{background:linear-gradient(180deg,#f2c85f,#cf9526);color:#2a1a00;box-shadow:0 6px 20px rgba(232,182,76,.35)}
+  .btn-moon{background:linear-gradient(180deg,#6b7cff,#3f49c9);box-shadow:0 6px 20px rgba(80,90,220,.4)}
+  .btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--border)}
+  .btn-sm{font-size:14px;padding:11px 14px;width:auto}
+  .btn-row{display:flex;gap:10px}.btn-row>button{flex:1}
+  .players{display:flex;flex-direction:column;gap:8px}
+  .player{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.22);border:1px solid var(--border);border-radius:14px;padding:12px 14px}
+  .player .avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:16px;font-weight:800;background:linear-gradient(135deg,#3a2350,#241531);color:#fff;flex:none}
+  .player .pname{font-weight:700;flex:1}
+  .player.dead{opacity:.45}.player.dead .pname{text-decoration:line-through}
+  .tag{font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;letter-spacing:.04em}
+  .tag.dead{background:rgba(192,32,58,.2);color:var(--blood2)}
+  .tag.role{background:rgba(62,207,142,.16);color:var(--green)}
+  .tag.votes{background:rgba(232,182,76,.18);color:var(--gold)}
+  .target{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.25);border:2px solid var(--border);border-radius:14px;padding:14px;width:100%;color:var(--text);font-size:16px;font-weight:700;text-align:left}
+  .target.selected{border-color:var(--blood2);background:rgba(192,32,58,.16)}
+  .target .badge{margin-left:auto;font-size:20px}
+  .rolecard{text-align:center;padding:26px 20px;background:radial-gradient(400px 200px at 50% 0,rgba(192,32,58,.25),transparent 70%),var(--panel-solid);border:1px solid var(--border);border-radius:var(--radius)}
+  .rolecard .emoji{font-size:72px;line-height:1}
+  .rolecard .rname{font-size:28px;margin-top:8px}
+  .rolecard .pre{font-size:14px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .rteam{display:inline-block;margin-top:10px;font-size:12px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:.06em}
+  .rteam.vampirler{background:rgba(192,32,58,.25);color:var(--blood2)}
+  .rteam.koyluler{background:rgba(62,207,142,.18);color:var(--green)}
+  .rolecard .rdesc{color:var(--muted);margin-top:14px;font-size:14px;line-height:1.5}
+  .phase-hdr{text-align:center;margin:8px 0 16px}
+  .phase-hdr .icon{font-size:44px}.phase-hdr h2{font-size:22px;margin-top:4px}.phase-hdr .sub{color:var(--muted);font-size:14px;margin-top:4px}
+  .notice{padding:12px 14px;border-radius:12px;font-size:14px;font-weight:600;line-height:1.45}
+  .notice.info{background:rgba(80,90,220,.15);color:var(--moon)}
+  .notice.warn{background:rgba(232,182,76,.15);color:var(--gold)}
+  .notice.death{background:rgba(192,32,58,.16);color:var(--blood2)}
+  .notice.ok{background:rgba(62,207,142,.14);color:var(--green)}
+  .pill{display:inline-block;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700}
+  .pill .n{color:var(--gold)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{padding:10px 14px;border-radius:999px;border:1.5px solid var(--border);background:rgba(0,0,0,.25);font-size:14px;font-weight:700;color:var(--text);width:auto}
+  .chip.on{border-color:var(--blood2);background:rgba(192,32,58,.18);color:#fff}
+  .stepper{display:flex;align-items:center;gap:14px;justify-content:center}
+  .stepper button{width:52px;height:52px;padding:0;font-size:26px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid var(--border)}
+  .stepper .val{font-size:34px;font-weight:800;min-width:56px;text-align:center}
+  .countdown{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:20px;color:var(--gold);background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:999px;padding:6px 16px}
+  .story{font-size:16px;line-height:1.7;color:#e7dcf0}
+  .story b{color:var(--gold)}
+  .hold-reveal{position:relative;border-radius:var(--radius);overflow:hidden}
+  .hold-cover{position:absolute;inset:0;display:grid;place-items:center;background:var(--panel-solid);border:1px solid var(--border);border-radius:var(--radius);z-index:2;cursor:pointer;text-align:center;padding:20px}
+  .hold-cover.hidden{display:none}
+  .row-between{display:flex;align-items:center;justify-content:space-between}
+  .log{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto}
+  .log .line{font-size:13.5px;color:var(--muted);line-height:1.4;padding:6px 10px;background:rgba(0,0,0,.2);border-radius:10px}
+  .log .line:last-child{color:var(--text);background:rgba(192,32,58,.12)}
+  .del{background:rgba(192,32,58,.15);color:var(--blood2);border:none;border-radius:10px;width:34px;height:34px;font-size:16px;padding:0;flex:none}
+  .bar{height:10px;border-radius:999px;background:rgba(0,0,0,.35);overflow:hidden;flex:1}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--blood2),var(--gold))}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .card,.rolecard,.phase-hdr{animation:fadeUp .3s ease both}
+  .kbd{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+'use strict';
+// ============================ Roller ============================
+const ROLE_INFO = {
+  vampir:{label:'Vampir',team:'vampirler',emoji:'🧛',pre:'Sen bir',desc:'Geceleri diğer vampirlerle kurban seçersin. Amacın köyü ele geçirmek. Gündüz kimliğini gizle!'},
+  koylu:{label:'Köylü',team:'koyluler',emoji:'🧑‍🌾',pre:'Sen bir',desc:'Özel gücün yok ama oyun senin ellerinde. Tartış, vampirleri bul, doğru oyu ver.'},
+  doktor:{label:'Doktor',team:'koyluler',emoji:'💉',pre:'Sen',desc:'Her gece bir kişiyi (kendin dahil) korursun. Vampirler onu seçerse ölmez.'},
+  gozcu:{label:'Gözcü',team:'koyluler',emoji:'🔮',pre:'Sen',desc:'Her gece bir kişiyi incelersin, vampir olup olmadığını öğrenirsin. Bilgini akıllıca kullan.'},
+};
+const MEKANLAR = ['Karpatlar’daki köy','Sisli liman kasabası','Terk edilmiş malikâne','Ücra dağ köyü','Kara ormanın kıyısı'];
+const ZAMANLAR = ['Dolunay gecesi','Kara veba yılları','Hasat sonu','Uzun kış','Modern çağ'];
+const SURELER  = [0,15,30,45,60];
+
+function maxVamp(n){ return Math.max(1, Math.floor((n-1)/2)); }
+function autoVamp(n){ let v = n<=5?1 : n<=8?2 : n<=11?3 : Math.floor(n/4); return Math.min(v, maxVamp(n)); }
+function roleDistribution(n, opts){
+  const roles=[];
+  for(let i=0;i<opts.vampCount;i++) roles.push('vampir');
+  if(opts.doktor && n>roles.length) roles.push('doktor');
+  if(opts.gozcu && n>roles.length) roles.push('gozcu');
+  while(roles.length<n) roles.push('koylu');
+  return shuffle(roles.slice(0,n));
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+// ============================ Durum ============================
+let G=null;
+const LS='vampir_tekcihaz_v2';
+function newGameState(){
+  return {
+    screen:'setup',
+    names:['','','',''],
+    opts:{vampCount:1,doktor:true,gozcu:true,mekan:MEKANLAR[0],zaman:ZAMANLAR[0],sure:30},
+    players:[], round:0, dealIndex:0,
+    night:{steps:[],stepIndex:0,vampireVotes:{},vampireTarget:null,doctorSave:null,seerInspect:null,seerResult:null},
+    vote:null,
+    lastDeaths:[], lastLynched:null, lastTally:null,
+    log:[], winner:null,
+    deadline:null, onExpire:null,
+  };
+}
+function loadPrefs(){try{return JSON.parse(localStorage.getItem(LS)||'null');}catch(e){return null;}}
+function savePrefs(){try{localStorage.setItem(LS,JSON.stringify({names:G.names,opts:G.opts}));}catch(e){}}
+
+// ============================ Yardımcılar ============================
+const $=s=>document.querySelector(s);
+function el(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstElementChild;}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function initials(n){return (n||'?').trim().slice(0,2).toUpperCase();}
+function alive(){return G.players.filter(p=>p.alive);}
+function aliveRole(r){return alive().find(p=>p.role===r)||null;}
+function aliveVamps(){return alive().filter(p=>p.role==='vampir');}
+function pushLog(t){G.log.push(t);if(G.log.length>50)G.log.shift();}
+
+// ============================ Zamanlayıcı ============================
+function armTimer(cb){
+  const s=G.opts.sure||0;
+  if(s>0){G.deadline=Date.now()+s*1000;G.onExpire=cb;}
+  else{G.deadline=null;G.onExpire=null;}
+}
+function clearTimer(){G.deadline=null;G.onExpire=null;}
+setInterval(()=>{
+  const cd=document.getElementById('countdown');
+  if(G&&G.deadline){
+    const rem=Math.max(0,Math.ceil((G.deadline-Date.now())/1000));
+    if(cd){cd.innerHTML='⏱ '+rem+' sn';cd.style.color=rem<=5?'var(--blood2)':'var(--gold)';}
+    if(Date.now()>=G.deadline){const cb=G.onExpire;clearTimer();if(cb)cb();}
+  }
+},250);
+function CountdownPill(){ return G.opts.sure>0 ? el('<div class="center" style="margin-bottom:12px"><span class="countdown" id="countdown">⏱ '+G.opts.sure+' sn</span></div>') : el('<div></div>'); }
+
+// ============================ Akış ============================
+function startGame(){
+  const names=G.names.map(s=>s.trim()).filter(Boolean);
+  if(names.length<4){toast('En az 4 oyuncu gerekli');return;}
+  if(new Set(names.map(s=>s.toLowerCase())).size!==names.length){toast('İsimler benzersiz olmalı');return;}
+  G.opts.vampCount=Math.min(G.opts.vampCount,maxVamp(names.length));
+  const dist=roleDistribution(names.length,G.opts);
+  G.players=names.map((n,i)=>({name:n,role:dist[i],alive:true}));
+  G.round=1;G.log=[];G.winner=null;G.dealIndex=0;
+  pushLog(`Oyun başladı — ${names.length} oyuncu, ${G.opts.vampCount} vampir. Mekân: ${G.opts.mekan}.`);
+  G.screen='deal';render();
+}
+function finishDealing(){ G.screen='story'; render(); }
+function enterNight(){
+  const steps=['vampir'];
+  if(aliveRole('doktor'))steps.push('doktor');
+  if(aliveRole('gozcu'))steps.push('gozcu');
+  G.night={steps,stepIndex:0,vampireVotes:{},vampireTarget:null,doctorSave:null,seerInspect:null,seerResult:null};
+  G.screen='night';
+  pushLog(`🌙 ${G.round}. gece çöküyor...`);
+  armStepTimer();
+  render();
+}
+function armStepTimer(){
+  const step=G.night.steps[G.night.stepIndex];
+  armTimer(()=>{ toast('Süre doldu'); nextStepOrResolve(); });
+}
+function nextStepOrResolve(){
+  if(G.night.stepIndex+1<G.night.steps.length){G.night.stepIndex++;armStepTimer();render();}
+  else{clearTimer();resolveNight();}
+}
+function tallyVampireTarget(){
+  const t={};Object.values(G.night.vampireVotes).forEach(n=>{if(n)t[n]=(t[n]||0)+1;});
+  let best=0,top=[];for(const[k,c]of Object.entries(t)){if(c>best){best=c;top=[k];}else if(c===best)top.push(k);}
+  return top.length?top[Math.floor(Math.random()*top.length)]:null;
+}
+function resolveNight(){
+  G.lastDeaths=[];
+  const vt=tallyVampireTarget(); G.night.vampireTarget=vt;
+  const sv=G.night.doctorSave;
+  if(vt){
+    if(vt===sv)pushLog('Gece saldırı oldu ama Doktor tam zamanında yetişti — kimse ölmedi.');
+    else{const p=G.players.find(p=>p.name===vt);if(p&&p.alive){p.alive=false;G.lastDeaths.push(p.name);}}
+  }
+  if(G.lastDeaths.length)pushLog(`🌅 Gün doğdu. Gece ${G.lastDeaths.join(', ')} can verdi.`);
+  else pushLog('🌅 Gün doğdu. Şafakta herkes nefesle uyandı — kimse ölmedi.');
+  G.screen='morning';
+  if(checkWin())return;
+  render();
+}
+// -- Oylama (elden ele gizli) --
+function startVoting(){
+  const order=alive().map(p=>p.name);
+  G.vote={order,index:0,started:false,votes:{}};
+  G.screen='vote';clearTimer();render();
+}
+function castVote(target){
+  const voter=G.vote.order[G.vote.index];
+  G.vote.votes[voter]=target;
+  G.vote.started=false;
+  if(G.vote.index+1<G.vote.order.length){G.vote.index++;clearTimer();render();}
+  else{clearTimer();computeVote();}
+}
+function computeVote(){
+  const t={};const voters={};
+  Object.entries(G.vote.votes).forEach(([voter,tg])=>{
+    if(tg&&tg!=='skip'){t[tg]=(t[tg]||0)+1;(voters[tg]=voters[tg]||[]).push(voter);}
+  });
+  let best=0,top=[];for(const[k,c]of Object.entries(t)){if(c>best){best=c;top=[k];}else if(c===best)top.push(k);}
+  G.lastTally={counts:t,voters,order:Object.keys(t).sort((a,b)=>t[b]-t[a]),
+    skip:Object.values(G.vote.votes).filter(v=>!v||v==='skip').length};
+  G.lastLynched=(top.length===1&&best>0)?top[0]:null;
+  G.screen='voteResult';render();
+}
+function applyLynch(){
+  if(G.lastLynched){
+    const p=G.players.find(p=>p.name===G.lastLynched);
+    if(p&&p.alive){p.alive=false;const i=ROLE_INFO[p.role];pushLog(`⚖️ Köy kararını verdi: ${p.name} infaz edildi. Rolü: ${i.emoji} ${i.label}.`);}
+  }else pushLog('⚖️ Oylarda çoğunluk sağlanamadı — kimse infaz edilmedi.');
+  if(checkWin())return;
+  G.round++;enterNight();
+}
+function checkWin(){
+  const a=alive();const v=a.filter(p=>p.role==='vampir').length;const o=a.length-v;
+  if(v===0){G.winner='koyluler';G.screen='ended';pushLog('🎉 Son vampir de yok edildi — KÖYLÜLER kazandı!');clearTimer();render();return true;}
+  if(v>=o){G.winner='vampirler';G.screen='ended';pushLog('🧛 Vampirler köyü ele geçirdi — VAMPİRLER kazandı!');clearTimer();render();return true;}
+  return false;
+}
+function restart(keep){const n=G.names,o=G.opts;G=newGameState();if(keep){G.names=n;G.opts=o;}clearTimer();render();}
+
+// ============================ Toast ============================
+let toastT=null;
+function toast(m){const o=$('.error-toast');if(o)o.remove();const t=el(`<div class="error-toast" style="position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);transform:translateX(-50%);background:var(--blood);color:#fff;padding:12px 20px;border-radius:999px;font-size:14px;font-weight:700;box-shadow:var(--shadow);z-index:50;max-width:90%;text-align:center">${esc(m)}</div>`);document.body.appendChild(t);clearTimeout(toastT);toastT=setTimeout(()=>t.remove(),2400);}
+
+// ============================ Render ============================
+function render(){const app=$('#app');app.innerHTML='';savePrefs();
+  const map={setup:Setup,deal:Deal,story:Story,night:Night,morning:Morning,vote:Vote,voteResult:VoteResult,ended:Ended};
+  app.appendChild((map[G.screen]||Setup)());window.scrollTo(0,0);
+}
+
+// ---- Kurulum
+function Setup(){
+  const root=el('<div class="grow stack"></div>');
+  root.appendChild(el(`<div class="brand"><div class="logo">🧛</div><h1>Vampir Köylü</h1><p>Tek cihaz · elden ele. Uygulama anlatıcılık yapar, hikâyeyi kurar.</p></div>`));
+  const nCount=()=>G.names.map(s=>s.trim()).filter(Boolean).length;
+
+  // Oyuncular
+  const c=el('<div class="card stack"></div>');
+  c.appendChild(el('<div class="row-between"><h3 style="font-size:16px">Oyuncular</h3><span class="muted" style="font-size:13px">4–20 kişi</span></div>'));
+  const list=el('<div class="stack"></div>');
+  function drawNames(){list.innerHTML='';G.names.forEach((nm,i)=>{
+    const row=el('<div style="display:flex;gap:8px;align-items:center"></div>');
+    const inp=el(`<input type="text" maxlength="20" placeholder="${i+1}. oyuncu" autocomplete="off" />`);inp.value=nm;
+    inp.oninput=()=>{G.names[i]=inp.value;};row.appendChild(inp);
+    if(G.names.length>4){const d=el('<button class="del">✕</button>');d.onclick=()=>{G.names.splice(i,1);drawNames();};row.appendChild(d);}
+    list.appendChild(row);});}
+  drawNames();c.appendChild(list);
+  const add=el('<button class="btn-ghost btn-sm" style="width:100%">+ Oyuncu ekle</button>');
+  add.onclick=()=>{if(G.names.length>=20){toast('En fazla 20 oyuncu');return;}G.names.push('');drawNames();};
+  c.appendChild(add);root.appendChild(c);
+
+  // Vampir sayısı
+  const vc=el('<div class="card stack"></div>');
+  vc.appendChild(el('<h3 style="font-size:16px">🧛 Vampir sayısı</h3>'));
+  const mx=maxVamp(Math.max(4,nCount()));
+  if(G.opts.vampCount>mx)G.opts.vampCount=mx;
+  const stp=el('<div class="stepper"></div>');
+  const minus=el('<button>−</button>');const plus=el('<button>+</button>');
+  const val=el(`<div class="val">${G.opts.vampCount}</div>`);
+  minus.onclick=()=>{G.opts.vampCount=Math.max(1,G.opts.vampCount-1);render();};
+  plus.onclick=()=>{if(G.opts.vampCount>=mx){toast('Oyuncu sayısına göre en fazla '+mx+' vampir');return;}G.opts.vampCount++;render();};
+  stp.appendChild(minus);stp.appendChild(val);stp.appendChild(plus);
+  vc.appendChild(stp);
+  vc.appendChild(el(`<p class="muted center" style="font-size:12.5px;margin:0">Oyuncu sayısına göre en fazla ${mx} vampir olabilir</p>`));
+  root.appendChild(vc);
+
+  // Ek roller
+  const rc=el('<div class="card stack"></div>');
+  rc.appendChild(el('<h3 style="font-size:16px">Ek roller</h3>'));
+  [['doktor','💉 Doktor','Her gece birinin hayatını kurtarır'],['gozcu','🔮 Gözcü','Her gece bir kimlik inceler']].forEach(([k,label,desc])=>{
+    const row=el(`<div class="target" style="cursor:pointer"><div style="flex:1"><div>${label}</div><div class="muted" style="font-size:12.5px;font-weight:500">${desc}</div></div></div>`);
+    row.appendChild(el(`<span class="badge">${G.opts[k]?'✅':'⬜'}</span>`));if(G.opts[k])row.classList.add('selected');
+    row.onclick=()=>{G.opts[k]=!G.opts[k];render();};rc.appendChild(row);});
+  root.appendChild(rc);
+
+  // Mekân & zaman
+  const mz=el('<div class="card stack"></div>');
+  mz.appendChild(el('<h3 style="font-size:16px">📖 Hikâye — Mekân</h3>'));
+  mz.appendChild(chipRow(MEKANLAR,G.opts.mekan,v=>{G.opts.mekan=v;render();}));
+  mz.appendChild(el('<h3 style="font-size:16px;margin-top:6px">🕰️ Zaman</h3>'));
+  mz.appendChild(chipRow(ZAMANLAR,G.opts.zaman,v=>{G.opts.zaman=v;render();}));
+  root.appendChild(mz);
+
+  // Süre
+  const sc=el('<div class="card stack"></div>');
+  sc.appendChild(el('<h3 style="font-size:16px">⏱️ Seçim süresi</h3>'));
+  sc.appendChild(el('<p class="muted" style="font-size:12.5px;margin:0">Gece seçimleri ve oy verme için tanınan süre</p>'));
+  sc.appendChild(chipRow(SURELER.map(s=>s===0?'Kapalı':s+' sn'), G.opts.sure===0?'Kapalı':G.opts.sure+' sn', v=>{G.opts.sure=v==='Kapalı'?0:parseInt(v);render();}));
+  root.appendChild(sc);
+
+  const start=el('<button class="btn-primary">🎭 Rolleri Dağıt ve Başla</button>');
+  start.onclick=startGame;root.appendChild(start);
+  root.appendChild(el('<div class="kbd">Roller gizli dağıtılır: telefonu sırayla herkese ver, herkes kendi rolünü görsün.</div>'));
+  return root;
+}
+function chipRow(items,cur,onPick){const w=el('<div class="chips"></div>');items.forEach(it=>{const c=el(`<button class="chip ${it===cur?'on':''}">${esc(it)}</button>`);c.onclick=()=>onPick(it);w.appendChild(c);});return w;}
+
+// ---- Rol dağıtımı
+function Deal(){
+  const p=G.players[G.dealIndex];const info=ROLE_INFO[p.role];
+  const root=el('<div class="grow stack"></div>');
+  root.appendChild(el(`<div class="phase-hdr"><div class="icon">🤫</div><h2>Rol Dağıtımı</h2><div class="sub">${G.dealIndex+1} / ${G.players.length} · telefonu doğru kişiye ver</div></div>`));
+  const hr=el('<div class="hold-reveal"></div>');
+  const rolecard=el(`<div class="rolecard">
+     <div class="pre">${info.pre}</div>
+     <div class="emoji">${info.emoji}</div>
+     <div class="rname">${p.role==='vampir'?'VAMPİRSİN':esc(info.label)}</div>
+     <span class="rteam ${info.team}">${info.team==='vampirler'?'TAKIM: VAMPİRLER':'TAKIM: KÖYLÜLER'}</span>
+     <div class="rdesc">${esc(info.desc)}</div>`);
+  if(p.role==='vampir'){const mates=G.players.filter(x=>x.role==='vampir'&&x!==p).map(x=>x.name);
+    rolecard.appendChild(el(`<div class="notice death" style="margin-top:14px">${mates.length?('Vampir yoldaşların: <b>'+mates.map(esc).join(', ')+'</b>'):'Tek vampir sensin.'}</div>`));}
+  hr.appendChild(rolecard);
+  const cover=el(`<div class="hold-cover"><div><div style="font-size:40px">👆</div><div style="font-weight:800;font-size:20px;margin-top:8px">${esc(p.name)}, sana geldi</div><div class="muted" style="margin-top:6px">Rolünü görmek için <b>basılı tut</b><br>(diğerleri bakmasın!)</div></div></div>`);
+  hr.appendChild(cover);root.appendChild(hr);
+  const show=e=>{e&&e.preventDefault&&e.preventDefault();cover.classList.add('hidden');};
+  const hide=()=>cover.classList.remove('hidden');
+  cover.addEventListener('pointerdown',show);rolecard.addEventListener('pointerdown',show);
+  hr.addEventListener('pointerup',hide);hr.addEventListener('pointerleave',hide);
+  const next=el(`<button class="btn-primary">${G.dealIndex+1<G.players.length?'Gördüm ✓ · Sonraki oyuncuya ver':'Gördüm ✓ · Hikâyeye geç 📖'}</button>`);
+  next.onclick=()=>{if(G.dealIndex+1<G.players.length){G.dealIndex++;render();}else finishDealing();};
+  root.appendChild(next);
+  root.appendChild(el('<div class="kbd">Rol kartı sadece basılı tutarken görünür. Bırakınca gizlenir.</div>'));
+  return root;
+}
+
+// ---- Hikâye (anlatıcı)
+function Story(){
+  const root=el('<div class="grow stack"></div>');
+  root.appendChild(el(`<div class="phase-hdr"><div class="icon">📖</div><h2>Hikâye</h2></div>`));
+  const v=G.opts.vampCount;
+  const text=`<b>${esc(G.opts.zaman)}</b>. Uzaklarda, <b>${esc(G.opts.mekan)}</b>... Halkın yorgun ama huzurlu göründüğü bu yerde karanlık bir sır fısıldanır: içinizde <b>${v} vampir</b> dolaşıyor. Geceleri avlanıyor, gündüzleri sizden biri gibi aranıza karışıyorlar.<br><br>Her gece biri kaybolacak. Her gün köy toplanıp bir şüpheliyi kürsüye çıkaracak. Kim insan, kim canavar? Güveni kazanan yaşar, açık veren kaybolur.<br><br>Şafak sökene kadar hepiniz hayatta kalabilecek misiniz — yoksa bu topraklar sonsuza dek vampirlere mi kalacak?`;
+  root.appendChild(el(`<div class="card"><p class="story">${text}</p></div>`));
+  const btn=el('<button class="btn-primary">🌙 İlk geceyi başlat</button>');
+  btn.onclick=enterNight;root.appendChild(btn);
+  return root;
+}
+
+// ---- Gece
+function Night(){
+  const step=G.night.steps[G.night.stepIndex];
+  const root=el('<div class="grow stack"></div>');
+  root.appendChild(el(`<div class="phase-hdr"><div class="icon">🌙</div><h2>${G.round}. Gece</h2><div class="sub">Herkes gözlerini kapatsın · uygulama yönlendiriyor</div></div>`));
+  root.appendChild(CountdownPill());
+  if(step==='vampir')root.appendChild(vampireStep());
+  else if(step==='doktor')root.appendChild(doctorStep());
+  else if(step==='gozcu')root.appendChild(seerStep());
+  return root;
+}
+function pickList(targets,selName,onPick){const w=el('<div class="stack"></div>');targets.forEach(t=>{
+  const b=el(`<button class="target ${selName===t.name?'selected':''}"><div class="avatar">${esc(initials(t.name))}</div><span>${esc(t.name)}</span></button>`);
+  if(selName===t.name)b.appendChild(el('<span class="badge">✔️</span>'));b.onclick=()=>onPick(t.name);w.appendChild(b);});return w;}
+function vampireStep(){
+  const box=el('<div class="stack"></div>');
+  box.appendChild(el('<div class="notice death">🧛 <b>Vampirler</b>, telefonu alın. Bu gece kimi avlayacaksınız? (Diğerleri gözlerini kapatsın)</div>'));
+  const vamps=aliveVamps().map(p=>p.name);
+  box.appendChild(el(`<p class="muted center" style="font-size:13px">Vampirler: <b style="color:var(--blood2)">${vamps.map(esc).join(', ')}</b> · en çok işaretlenen kurban olur</p>`));
+  // vampirler ortak: tek seçim yeterli (ortak karar) — basitlik için tek işaret
+  const cur=G.night.vampireVotes['ortak']||null;
+  box.appendChild(pickList(aliveVamps().length?alive().filter(p=>p.role!=='vampir'):alive(), cur, n=>{G.night.vampireVotes={ortak:n};render();}));
+  const btn=el('<button class="btn-primary">Onayla →</button>');btn.disabled=!cur;btn.onclick=nextStepOrResolve;box.appendChild(btn);
+  return box;
+}
+function doctorStep(){
+  const box=el('<div class="stack"></div>');const doc=aliveRole('doktor');
+  box.appendChild(el(`<div class="notice ok">💉 <b>Doktor</b> (${esc(doc.name)}), telefonu al. Bu gece kimin hayatını kurtaracaksın? (Kendini de seçebilirsin)</div>`));
+  box.appendChild(pickList(alive(),G.night.doctorSave,n=>{G.night.doctorSave=n;render();}));
+  const btn=el('<button class="btn-primary">Onayla →</button>');btn.disabled=!G.night.doctorSave;btn.onclick=nextStepOrResolve;box.appendChild(btn);
+  return box;
+}
+function seerStep(){
+  const box=el('<div class="stack"></div>');const seer=aliveRole('gozcu');
+  box.appendChild(el(`<div class="notice info">🔮 <b>Gözcü</b> (${esc(seer.name)}), telefonu al. Kimi incelemek istersin?</div>`));
+  if(!G.night.seerInspect){
+    box.appendChild(pickList(alive().filter(p=>p!==seer),null,n=>{const t=G.players.find(p=>p.name===n);G.night.seerInspect=n;G.night.seerResult=(t.role==='vampir');clearTimer();render();}));
+  }else{
+    const isV=G.night.seerResult;const hr=el('<div class="hold-reveal"></div>');
+    hr.appendChild(el(`<div class="rolecard"><div class="emoji">${isV?'🧛':'✅'}</div><div class="rname" style="font-size:22px">${esc(G.night.seerInspect)}</div><span class="rteam ${isV?'vampirler':'koyluler'}">${isV?'VAMPİR!':'VAMPİR DEĞİL'}</span></div>`));
+    const cover=el('<div class="hold-cover"><div><div style="font-size:40px">🔮</div><div style="font-weight:800;margin-top:8px">Sonucu görmek için basılı tut</div><div class="muted" style="margin-top:6px">Sadece Gözcü baksın</div></div></div>');
+    hr.appendChild(cover);const show=e=>{e&&e.preventDefault&&e.preventDefault();cover.classList.add('hidden');};const hide=()=>cover.classList.remove('hidden');
+    cover.addEventListener('pointerdown',show);hr.addEventListener('pointerup',hide);hr.addEventListener('pointerleave',hide);
+    box.appendChild(hr);const btn=el('<button class="btn-primary">Gördüm ✓ →</button>');btn.onclick=nextStepOrResolve;box.appendChild(btn);
+  }
+  return box;
+}
+
+// ---- Sabah
+function Morning(){
+  const root=el('<div class="grow stack"></div>');
+  root.appendChild(el(`<div class="phase-hdr"><div class="icon">☀️</div><h2>${G.round}. Gün</h2><div class="sub">Herkes uyansın</div></div>`));
+  if(G.lastDeaths.length)root.appendChild(el(`<div class="notice death">🩸 Şafak vakti köy meydanında <b>${G.lastDeaths.map(esc).join(', ')}</b> cansız bulundu. Vampirler yine avlandı...</div>`));
+  else root.appendChild(el('<div class="notice ok">🕊️ Bu sabah kimse eksilmedi. Gece boşa geçti — belki bir koruyucu iş başındaydı.</div>'));
+  root.appendChild(el('<div class="card"><p style="margin:0;line-height:1.6">Köylüler, yüksek sesle tartışın: kim şüpheli? Herkes fikrini söylesin. Hazır olunca <b>oylamaya</b> geçin — telefon sırayla dolaşacak, herkes gizlice oy verecek.</p></div>'));
+  root.appendChild(PlayerList(false));
+  const btn=el('<button class="btn-gold">⚖️ Oylamaya geç</button>');btn.onclick=startVoting;root.appendChild(btn);
+  root.appendChild(LogBox());
+  return root;
+}
+
+// ---- Oylama (elden ele gizli)
+function Vote(){
+  const root=el('<div class="grow stack"></div>');
+  const voter=G.vote.order[G.vote.index];
+  root.appendChild(el(`<div class="phase-hdr"><div class="icon">🗳️</div><h2>Gizli Oylama</h2><div class="sub">${G.vote.index+1} / ${G.vote.order.length} · telefonu doğru kişiye ver</div></div>`));
+  if(!G.vote.started){
+    root.appendChild(el(`<div class="card center"><div style="font-size:44px">🤫</div><div style="font-weight:800;font-size:22px;margin-top:8px">${esc(voter)}, sıra sende</div><div class="muted" style="margin-top:6px">Telefonu al. Oyun gizli — kimse görmesin.</div></div>`));
+    const b=el(`<button class="btn-primary">▶ ${esc(voter)} olarak oy ver</button>`);
+    b.onclick=()=>{G.vote.started=true;armTimer(()=>{toast('Süre doldu — çekimser sayıldı');castVote('skip');});render();};
+    root.appendChild(b);
+  }else{
+    root.appendChild(CountdownPill());
+    root.appendChild(el(`<div class="notice warn">${esc(voter)}, kimin infaz edilmesini istiyorsun?</div>`));
+    root.appendChild(pickList(alive().filter(p=>p.name!==voter),null,n=>castVote(n)));
+    const skip=el('<button class="btn-ghost" style="margin-top:12px">Çekimser kal</button>');skip.onclick=()=>castVote('skip');root.appendChild(skip);
+  }
+  return root;
+}
+
+// ---- Oylama sonucu
+function VoteResult(){
+  const root=el('<div class="grow stack"></div>');
+  root.appendChild(el(`<div class="phase-hdr"><div class="icon">📊</div><h2>Oy Sonuçları</h2></div>`));
+  const T=G.lastTally;const total=G.vote.order.length;
+  const card=el('<div class="card stack"></div>');
+  if(!T.order.length){card.appendChild(el('<p class="center muted" style="margin:0">Hiç oy kullanılmadı.</p>'));}
+  T.order.forEach(name=>{
+    const c=T.counts[name];const who=(T.voters[name]||[]).join(', ');
+    const row=el('<div></div>');
+    row.appendChild(el(`<div class="row-between" style="margin-bottom:6px"><b>${esc(name)}</b><span class="tag votes">${c} oy</span></div>`));
+    const bar=el('<div style="display:flex;align-items:center;gap:10px"></div>');
+    bar.appendChild(el(`<div class="bar"><i style="width:${Math.round(c/total*100)}%"></i></div>`));
+    row.appendChild(bar);
+    row.appendChild(el(`<div class="muted" style="font-size:12.5px;margin-top:5px">${esc(who)}</div>`));
+    card.appendChild(row);
+  });
+  if(T.skip)card.appendChild(el(`<div class="muted center" style="font-size:13px">Çekimser: ${T.skip}</div>`));
+  root.appendChild(card);
+  if(G.lastLynched)root.appendChild(el(`<div class="notice death">⚖️ Oy çokluğuyla <b>${esc(G.lastLynched)}</b> infaz ediliyor...</div>`));
+  else root.appendChild(el('<div class="notice warn">🤝 Çoğunluk sağlanamadı (berabere) — kimse infaz edilmiyor.</div>'));
+  const btn=el('<button class="btn-primary">Sonucu uygula →</button>');btn.onclick=applyLynch;root.appendChild(btn);
+  return root;
+}
+
+// ---- Bitiş
+function Ended(){
+  const root=el('<div class="grow stack"></div>');const win=G.winner;
+  root.appendChild(el(`<div class="brand" style="margin-top:20px"><div class="logo">${win==='vampirler'?'🧛':'🎉'}</div><h1 style="font-size:26px">${win==='vampirler'?'Vampirler Kazandı':'Köylüler Kazandı'}</h1><p>${win==='vampirler'?esc(G.opts.mekan)+' artık karanlığa gömüldü...':esc(G.opts.mekan)+' yeniden huzura kavuştu.'}</p></div>`));
+  const reveal=el('<div class="card stack"><h3 style="font-size:16px">Roller</h3></div>');const list=el('<div class="players"></div>');
+  G.players.forEach(p=>{const i=ROLE_INFO[p.role];list.appendChild(el(`<div class="player ${p.alive?'':'dead'}"><div class="avatar">${esc(initials(p.name))}</div><div class="pname">${esc(p.name)}</div>${p.alive?'':'<span class="tag dead">ÖLÜ</span>'}<span class="tag role">${i.emoji} ${esc(i.label)}</span></div>`));});
+  reveal.appendChild(list);root.appendChild(reveal);
+  const again=el('<button class="btn-primary">🔄 Aynı oyuncularla tekrar</button>');again.onclick=()=>restart(true);
+  const nw=el('<button class="btn-ghost">Yeni oyun / oyuncular</button>');nw.onclick=()=>restart(false);
+  root.appendChild(again);root.appendChild(nw);root.appendChild(LogBox());
+  return root;
+}
+
+// ---- Ortak
+function PlayerList(showRoles){const wrap=el('<div class="players"></div>');G.players.forEach(p=>{
+  const row=el(`<div class="player ${p.alive?'':'dead'}"><div class="avatar">${esc(initials(p.name))}</div><div class="pname">${esc(p.name)}</div></div>`);
+  if(!p.alive){const i=ROLE_INFO[p.role];row.appendChild(el('<span class="tag dead">ÖLÜ</span>'));row.appendChild(el(`<span class="tag role">${i.emoji} ${esc(i.label)}</span>`));}
+  wrap.appendChild(row);});return wrap;}
+function LogBox(){if(!G.log.length)return el('<div></div>');const box=el('<div class="card"><h3 style="font-size:14px;color:var(--muted);margin-bottom:8px">📜 Olaylar</h3></div>');const log=el('<div class="log"></div>');G.log.forEach(l=>log.appendChild(el(`<div class="line">${esc(l)}</div>`)));box.appendChild(log);setTimeout(()=>{log.scrollTop=log.scrollHeight;},0);return box;}
+
+// ============================ Başlat ============================
+G=newGameState();
+const pf=loadPrefs();
+if(pf){if(pf.names&&pf.names.length>=4)G.names=pf.names;if(pf.opts)G.opts=Object.assign(G.opts,pf.opts);}
+render();
+</script>
+</body>
+</html>

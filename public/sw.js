@@ -1,5 +1,5 @@
 // Vampir Köylü — servis çalışanı: uygulama kabuğunu önbelleğe alır, API'yi asla.
-const CACHE = 'vampir-koylu-v2';
+const CACHE = 'vampir-koylu-v3';
 const SHELL = [
   './',
   './index.html',

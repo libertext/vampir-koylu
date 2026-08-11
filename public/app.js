@@ -3,7 +3,7 @@
 // ------------------------------------------------------------------ oturum
 const LS = 'vampir_session_v1';
 const LS_MEKAN = 'vampir_mekanlar_v1';
-const MEKAN_PRESETS = ['Bekçiler Çalhanlar Dinlenme Tesisleri', 'Karaçulha Yayla', 'Kayadibi Köyü', 'Foça Mahallesi', 'Şövalye Adası', 'Aşıklar Tepesi'];
+const MEKAN_PRESETS = ['584. sokak', 'Bekçiler Çalhanlar Dinlenme Tesisleri', 'Karaçulha Yayla', 'Kayadibi Köyü', 'Foça Mahallesi', 'Şövalye Adası', 'Aşıklar Tepesi'];
 const NAME_PRESETS = ['Aysel', 'Sezin', 'Mustafa', 'Ali', 'Burakhan', 'Merve'];
 function nameChips(nameInput) {
   const wrap = el('<div class="chips" style="margin-top:8px"></div>');
@@ -217,7 +217,8 @@ function PlayerList(showRoles) {
     row.appendChild(el(`<div class="pname">${esc(p.name)}</div>`));
     if (p.id === view.me.id) row.appendChild(el('<span class="tag you">SEN</span>'));
     if (p.isHost) row.appendChild(el('<span class="tag host">KURUCU</span>'));
-    if (!p.alive) row.appendChild(el('<span class="tag dead">ÖLÜ</span>'));
+    if (p.left) row.appendChild(el('<span class="tag dead">🏃 KAÇTI</span>'));
+    else if (!p.alive) row.appendChild(el('<span class="tag dead">ÖLÜ</span>'));
     if (showRoles && p.role) row.appendChild(el(`<span class="tag role">${p.emoji || ''} ${esc(p.role)}</span>`));
     // Lobide kurucu oyuncu atabilir
     if (view.phase === 'lobby' && view.me.isHost && p.id !== view.me.id) {
@@ -248,8 +249,16 @@ function HostAdvance() {
 }
 
 function LeaveBtn() {
+  const inGame = view.phase !== 'lobby' && view.phase !== 'ended';
   const b = el('<button class="btn-ghost btn-sm" style="width:100%;margin-top:auto">Odadan Ayrıl</button>');
-  b.onclick = () => { if (confirm('Odadan ayrılmak istediğine emin misin?')) clearSession(), render(); };
+  b.onclick = async () => {
+    const msg = inGame
+      ? 'Ayrılırsan köyden kaçmış olursun ve oyuna geri dönemezsin. Oyun kalanlarla devam eder. Emin misin?'
+      : 'Odadan ayrılmak istediğine emin misin?';
+    if (!confirm(msg)) return;
+    try { await sendAction('leave', {}); } catch (e) {}
+    clearSession(); render();
+  };
   return b;
 }
 
