@@ -105,6 +105,7 @@ function render() {
     case 'story': app.appendChild(StoryScreen()); break;
     case 'night': app.appendChild(NightScreen()); break;
     case 'day': app.appendChild(DayScreen()); break;
+    case 'reveal': app.appendChild(RevealScreen()); break;
     case 'vote': app.appendChild(VoteScreen()); break;
     case 'ended': app.appendChild(EndedScreen()); break;
     default: app.appendChild(el('<div class="card">Bilinmeyen durum.</div>'));
@@ -436,6 +437,40 @@ function TargetList(targets, mySel, actionType, votes) {
 }
 
 // ---- Gündüz (tartışma)
+// Belirgin ölüm/infaz kartı: kim, rolü, masum muydu, özel anlatı
+function DeathCard(title, d) {
+  const badge = d.innocent
+    ? '<span class="rteam koyluler">MASUMDU 😇</span>'
+    : '<span class="rteam vampirler">VAMPİRDİ 🧛</span>';
+  return el(`<div class="rolecard" style="padding:22px">
+    <div style="font-size:13px;color:var(--muted);font-weight:800;letter-spacing:.04em">${esc(title)}</div>
+    <div class="emoji" style="font-size:60px;margin-top:6px">${d.emoji || '☠️'}</div>
+    <div class="rname">${esc(d.name)}</div>
+    <div style="margin-top:8px">${badge}</div>
+    <div class="muted" style="margin-top:8px;font-size:13px">Rolü: ${esc(d.role || '')}</div>
+    ${d.special ? `<div class="notice death" style="margin-top:14px">${esc(d.special)}</div>` : ''}
+  </div>`);
+}
+
+// İnfaz sonucu ekranı — aceleye gelmesin, host devam ettirir
+function RevealScreen() {
+  const root = el('<div class="grow stack"></div>');
+  root.appendChild(TopBar());
+  root.appendChild(el(`<div class="phase-hdr"><div class="icon">⚖️</div><h2>İnfaz Sonucu</h2><div class="sub">${view.round}. gün oylaması</div></div>`));
+  const r = (view.prompt && view.prompt.reveal) || { kind: 'nolynch' };
+  if (r.kind === 'lynch') {
+    root.appendChild(DeathCard('⚖️ Köyün kararıyla infaz edildi', r));
+  } else {
+    root.appendChild(el('<div class="card center"><div style="font-size:52px">🤝</div><p class="muted" style="margin-top:8px">Oylarda çoğunluk sağlanamadı — bu tur kimse infaz edilmedi.</p></div>'));
+  }
+  root.appendChild(RoleBanner());
+  const adv = HostAdvance();
+  if (adv) root.appendChild(adv);
+  else root.appendChild(el('<div class="waiting">Kurucunun devam etmesi bekleniyor<span class="dots"></span></div>'));
+  root.appendChild(LogBox());
+  return root;
+}
+
 function DayScreen() {
   const root = el('<div class="grow stack"></div>');
   root.appendChild(TopBar());
@@ -446,10 +481,12 @@ function DayScreen() {
       <div class="sub">Tartışma zamanı</div>
     </div>`));
 
-  if (view.lastNightDeaths && view.lastNightDeaths.length)
-    root.appendChild(el(`<div class="notice death">🩸 Gece <b>${view.lastNightDeaths.map(esc).join(', ')}</b> öldürüldü.</div>`));
-  else
+  const deaths = (view.prompt && view.prompt.deaths) || [];
+  if (deaths.length) {
+    deaths.forEach(d => root.appendChild(DeathCard('🩸 Gece öldürüldü', d)));
+  } else {
     root.appendChild(el('<div class="notice ok">🕊️ Bu gece kimse ölmedi!</div>'));
+  }
 
   root.appendChild(RoleBanner());
   root.appendChild(el(`<div class="card">

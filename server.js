@@ -208,6 +208,21 @@ function nightReady(room) {
   return vamps.length > 0 && allVamps && docReady && seerReady;
 }
 
+// İlk gece: rastgele bir oyuncuya şüphe çektiren muzip duyumlar (isme ek getirmez)
+function firstNightRumor(name) {
+  const t = name;
+  const v = [
+    `Gece köy meydanında ${t} adında biri, sırtında pelerine benzer uzun bir ceketle dolaşırken görülmüş — öyle diyorlar.`,
+    `Komşular ${t} için fısıldaşıyor: sabaha karşı bahçede tuhaf tuhaf volta atıyormuş.`,
+    `Birileri ${t} hakkında “dişleri biraz fazla sivri değil mi?” diye konuşuyor.`,
+    `${t} gece yarısı kimseye görünmeden evden süzülmüş; nereye gittiğini gören olmamış.`,
+    `Sabah ${t} aynaya bakmaktan özenle kaçındı, diyenler var…`,
+    `${t} boynundaki o kırmızı izi nereden aldı acaba, diye soruyor herkes.`,
+    `Dün gece ${t} adında birinin gölgesi, ay ışığında olduğundan uzun görünüyormuş.`,
+  ];
+  return v[Math.floor(Math.random() * v.length)];
+}
+
 // İlk gece için muzip anlatımlar (kurban seçilse de kimse ölmez) — isme ek getirmez
 function firstNightTease(room, victimName) {
   const t = victimName;
@@ -237,11 +252,17 @@ function resolveNight(room) {
   if (top.length) victim = top[Math.floor(Math.random() * top.length)];
 
   room.lastNightDeaths = [];
+  room.nightReveal = [];
 
-  // İlk gece güvenli: kimse ölmez, muzip bir hikâye anlatılır
+  // İlk gece güvenli: kimse ölmez, muzip bir hikâye + şüphe çektiren duyum anlatılır
   if (room.round === 1) {
     const vname = victim ? (room.players.get(victim) || {}).name : null;
-    pushLog(room, `🌅 İlk sabah! ${firstNightTease(room, vname)} Kimse ölmedi.`);
+    pushLog(room, `🌅 İlk sabah! Kimse ölmedi. ${firstNightTease(room, vname)}`);
+    const aliveArr = alivePlayers(room);
+    if (aliveArr.length) {
+      const r = aliveArr[Math.floor(Math.random() * aliveArr.length)];
+      pushLog(room, `👀 ${firstNightRumor(r.name)}`);
+    }
     room.night = { vampireVotes: {}, doctorSave: null, seerInspect: null };
     room.phase = 'day';
     touch(room);
@@ -263,6 +284,11 @@ function resolveNight(room) {
     }).filter(Boolean);
     const suffix = extras.length ? ' ' + extras.join(' ') : '';
     pushLog(room, `🌅 Sabah oldu. Gece ${room.lastNightDeaths.join(', ')} öldürülmüş bulundu.${suffix}`);
+    room.nightReveal = room.lastNightDeaths.map(n => {
+      const pl = room.order.map(i => room.players.get(i)).find(x => x && x.name === n);
+      const info = pl ? ROLE_INFO[pl.role] : null;
+      return { name: n, role: info ? info.label : '', emoji: info ? info.emoji : '', innocent: pl ? pl.role !== 'vampir' : true, special: specialDeathLine(n, pl && pl.role) || null };
+    });
   } else if (!victim) {
     pushLog(room, `🌅 Sabah oldu. Sakin bir geceydi, kimse ölmedi.`);
   } else {
@@ -296,6 +322,7 @@ function resolveVote(room) {
     else if (c === best) top.push(t);
   }
   room.lastLynched = null;
+  room.reveal = null;
   if (top.length === 1 && best > 0) {
     const p = room.players.get(top[0]);
     if (p && p.alive) {
@@ -304,18 +331,28 @@ function resolveVote(room) {
       const info = ROLE_INFO[p.role];
       const special = specialDeathLine(p.name, p.role);
       pushLog(room, `⚖️ Köy oyladı: ${p.name} infaz edildi. Rolü: ${info.emoji} ${info.label}.${special ? ' ' + special : ''}`);
+      room.reveal = { kind: 'lynch', name: p.name, role: info.label, emoji: info.emoji, innocent: p.role !== 'vampir', special: special || null };
     }
   } else {
     pushLog(room, `⚖️ Oylamada uzlaşma olmadı, kimse asılmadı.`);
+    room.reveal = { kind: 'nolynch' };
   }
   room.votes = {};
   touch(room);
   if (checkWin(room)) return;
-  // Sonraki geceye geç
+  // Sonucu göster; host "devam" deyene kadar bekle (aceleye gelmesin)
+  room.phase = 'reveal';
+}
+
+// Sonuç ekranından sonraki geceye geçiş
+function revealToNight(room) {
   room.round += 1;
   room.phase = 'night';
   room.lastNightDeaths = [];
+  room.nightReveal = [];
+  room.reveal = null;
   pushLog(room, `🌙 ${room.round}. gece çöküyor...`);
+  touch(room);
 }
 
 function checkWin(room) {
@@ -403,6 +440,7 @@ function handleAction(room, player, type, payload) {
       else if (room.phase === 'night') resolveNight(room);
       else if (room.phase === 'day') toVote(room);
       else if (room.phase === 'vote') resolveVote(room);
+      else if (room.phase === 'reveal') revealToNight(room);
       else return { error: 'Şu an ilerletilecek bir şey yok.' };
       touch(room);
       return { ok: true };
@@ -532,7 +570,9 @@ function viewFor(room, player) {
       view.prompt = { type: 'sleep', dead: false, waiting: submitted };
     }
   } else if (room.phase === 'day') {
-    view.prompt = { type: 'day' };
+    view.prompt = { type: 'day', deaths: room.nightReveal || [] };
+  } else if (room.phase === 'reveal') {
+    view.prompt = { type: 'reveal', reveal: room.reveal || { kind: 'nolynch' } };
   } else if (room.phase === 'vote') {
     const tally = {};
     for (const v of Object.values(room.votes)) { const k = v || '?'; tally[k] = (tally[k] || 0) + 1; }
@@ -555,11 +595,12 @@ function viewFor(room, player) {
 
   // Host için ilerletme kontrolü
   view.hostControls = me.isHost ? {
-    canAdvance: room.phase === 'story' || room.phase === 'night' || room.phase === 'day' || room.phase === 'vote',
+    canAdvance: room.phase === 'story' || room.phase === 'night' || room.phase === 'day' || room.phase === 'vote' || room.phase === 'reveal',
     advanceLabel: room.phase === 'story' ? 'İlk geceyi başlat 🌙'
       : room.phase === 'night' ? 'Geceyi bitir →'
       : room.phase === 'day' ? 'Oylamaya geç →'
-      : room.phase === 'vote' ? 'Oylamayı bitir →' : null,
+      : room.phase === 'vote' ? 'Oylamayı bitir →'
+      : room.phase === 'reveal' ? 'Devam et → gece 🌙' : null,
   } : null;
 
   return view;
